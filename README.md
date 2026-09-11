@@ -1,103 +1,117 @@
-# 2-Days Sequences (Projected) with Best Match
+# 2 Days Seq Projection
 
-**File:** `2dsp.12.12092026.0014.pine`
-**Indicator name:** 2-Days Sequences (Projected) with Best Match
-**Short name (chart label):** 2 Days Seq Projection
-**Release:** `12.12092026.0014`
-**Author:** Subhasom Mandal — [github.com/Subhasom](https://github.com/Subhasom)
-**Date:** Saturday 12th Sep 2026
-**Platform:** TradingView, Pine Script v6
-**Market:** NSE (National Stock Exchange of India), intraday charts
+**2-Days Sequences (Projected) with Best Match: an intraday analog-forecasting overlay for TradingView (Pine Script v6)**
+
+| | |
+|---|---|
+| **Author** | Subhasom Mandal ([github.com/Subhasom](https://github.com/Subhasom)) |
+| **Current release** | 12.12092026.0014 |
+| **Platform** | TradingView, Pine Script v6, overlay indicator |
+| **Market** | NSE (National Stock Exchange of India), intraday charts |
+| **File** | `2dsp.<release>.pine` |
+
+> ⚠️ **Disclaimer:** 2 Days Seq Projection is an analysis tool, not financial advice. A past day looking like today does not mean the next day will repeat. Always test on your own instruments and timeframes, and use proper risk management.
 
 ---
 
-## Table of Contents
+## Table of contents
 
-1. [What the Indicator Does](#1-what-the-indicator-does)
+1. [What 2 Days Seq Projection does](#1-what-2-days-seq-projection-does)
 2. [Installation](#2-installation)
-3. [Quick Start](#3-quick-start)
-4. [How It Works — Detailed Logic](#4-how-it-works--detailed-logic)
-5. [User Manual — Every Input Explained](#5-user-manual--every-input-explained)
-6. [Reading the Chart](#6-reading-the-chart)
-7. [Recommended Timeframes](#7-recommended-timeframes)
-8. [Practical Workflows](#8-practical-workflows)
-9. [Limitations and Known Behaviours](#9-limitations-and-known-behaviours)
-10. [Troubleshooting / FAQ](#10-troubleshooting--faq)
-11. [Changelog](#11-changelog)
-12. [Disclaimer](#12-disclaimer)
+3. [Reading the chart](#3-reading-the-chart)
+4. [How it works: full logic](#4-how-it-works-full-logic)
+5. [Parameter reference](#5-parameter-reference)
+6. [How to use it: practical guide](#6-how-to-use-it-practical-guide)
+7. [Limitations and honest notes](#7-limitations-and-honest-notes)
+8. [Release versioning](#8-release-versioning)
+9. [Credits](#9-credits)
 
 ---
 
-## 1. What the Indicator Does
+## 1. What 2 Days Seq Projection does
 
-This is an **analog (pattern-memory) forecasting overlay**. The idea behind it is simple: the way price moved on recent days is a reasonable reference for how it *might* move today and tomorrow, and if today is starting out like one particular recent day, the day that followed it is a useful "what could happen next" template.
+2 Days Seq Projection overlays recent price history onto today's session so you can see how the market *might* move today and into tomorrow. It combines three ideas:
 
-The indicator does two things:
-
-**Blue lines — 7 historical 2-day sequences.** At the first bar of every NSE session, it takes the last eight completed sessions and builds seven overlapping 2-day paths: Days 2 & 1 ago, Days 3 & 2 ago, and so on up to Days 8 & 7 ago. Each path is drawn starting at today's first bar, so the first half of each line overlays today's session and the second half projects forward into the next session. By default every line is shifted so it starts exactly at today's opening price. Newer sequences are drawn more opaque; older ones fade.
-
-**White line — best-match forecast.** On every bar, the indicator compares how price has moved *so far today* against how price moved during the first day of each of the seven sequences. The sequence whose first day most closely resembles today is redrawn as a white line. Because that sequence is two days long, the white line shows both "the day that looked like today" and "what happened the day after it."
+- **Rolling 2-day sequences.** At the first bar of every NSE session, the script takes the last **8 completed sessions** and stitches them into **7 overlapping 2-day paths** (Days 2 & 1 ago, Days 3 & 2 ago … Days 8 & 7 ago).
+- **Projection from today's open.** Each 2-day path is drawn as a **blue line** starting at today's first bar and running through today and on into the next session. By default each line is shifted to start at today's open, so you compare shapes and move sizes, not old price levels. Newer sequences are more solid; older ones fade.
+- **Best-match forecast.** On every bar, today's price path so far is compared with the **first day** of each sequence using a **volume-weighted** or **plain mean-squared error**. The closest sequence is redrawn as a **white line**, showing both "the recent day that looked most like today" and "what happened the day after it."
 
 ---
 
 ## 2. Installation
 
-1. Open TradingView and load an NSE symbol (e.g. `NSE:NIFTY`, `NSE:RELIANCE`, `NSE:BANKNIFTY1!`).
-2. Switch to an intraday timeframe (see [Section 7](#7-recommended-timeframes)).
-3. Open the **Pine Editor** at the bottom of the screen.
-4. Delete the template code, paste the full contents of `2dsp.12.12092026.0014.pine`, and click **Save**.
-5. Click **Add to chart**. The indicator appears on the chart as **2 Days Seq Projection**.
-6. Open the indicator's **Settings** (gear icon on the indicator label) to adjust inputs.
+1. Open [TradingView](https://www.tradingview.com) and load an NSE symbol (e.g. `NSE:NIFTY`, `NSE:RELIANCE`, `NSE:BANKNIFTY1!`).
+2. Switch to an intraday timeframe (3m–15m recommended, see [§6](#6-how-to-use-it-practical-guide)).
+3. Open the **Pine Editor** tab at the bottom of the screen.
+4. Delete the template code, then paste the full contents of `2dsp.<release>.pine`.
+5. Click **Save**, then **Add to chart**. The indicator appears on the chart as **2 Days Seq Projection**.
 
-The script needs at least **8 completed sessions** of history on the chart to draw all seven sequences. TradingView normally loads far more than that, so this is only a concern on very new symbols or heavily limited history.
+> 💡 **When updating to a new release**, remove the old indicator from the chart and add the new one. TradingView remembers old settings, so new defaults only apply to a freshly added indicator.
 
----
-
-## 3. Quick Start
-
-With the default settings, after adding the script you will see:
-
-- Up to 7 blue lines fanning out from today's open, extending past the end of today's session into the next one.
-- One white line lying on top of one of the blue lines — the current best match.
-- As the day progresses the white line may jump to a different sequence whenever another historical day starts fitting today better.
-
-Watch where today's candles sit relative to the fan, and treat the white line's second half as a scenario for the next session, not a prediction.
+The chart needs at least **8 completed sessions** of history to draw all seven sequences. TradingView normally loads far more, so this only matters on newly listed symbols.
 
 ---
 
-## 4. How It Works — Detailed Logic
+## 3. Reading the chart
+
+| Element | Look | Meaning |
+|---|---|---|
+| **Seq 1 line** | Solid blue line | Days 2 & 1 ago, projected from today's open. The most recent sequence. |
+| **Seq 2 – Seq 7 lines** | Progressively fainter blue lines | Older 2-day sequences. Seq 7 (Days 8 & 7 ago) is the faintest. |
+| **Best-match line** | White line on top of one blue line | The sequence whose first day most resembles today so far. Can switch to another sequence during the day. |
+| **First half of every line** | Over today's candles | The historical "day 1", laid over today for direct comparison with live price. |
+| **Second half of every line** | Beyond today's last bar | The historical "day 2", projected into the next session. |
+| **Step inside a line** | Jump near the session boundary | The historical overnight gap between the two days in that sequence, carried into the projection. |
+| **Fan of blue lines** | Spread of the 7 lines | An informal picture of recent intraday range. Tight fan = recent days behaved alike; wide fan = they diverged. |
+
+> **Important:** the white line is **not a prediction**. It is a replay of a recent day that happened to start like today. It is recalculated on every bar and can change, so what it showed at the close is not what it showed at 10:00.
+
+All lines are deleted and rebuilt on the first bar of each new session, so only the current day's fan is ever on the chart.
+
+---
+
+## 4. How it works: full logic
+
+The pipeline runs on every bar:
+
+```
+Price & volume
+   │
+   ├─► 1. Session detection (first bar of the NSE session?)
+   │
+   ├─► 2. Rolling storage (today + last 8 sessions, price and volume)
+   │
+   ├─► 3. Stitch 7 two-day sequences
+   │
+   ├─► 4. Project onto today (align to today's open) ──► 7 blue lines  (first bar only)
+   │
+   ├─► 5. Similarity scoring vs today's path so far ──► error per sequence
+   │
+   └─► 6. Lowest error wins ──► white best-match line  (redrawn every bar)
+```
 
 ### 4.1 Session detection
 
-```pine
-newDay = session.isfirstbar
-```
+`session.isfirstbar` is true on the first bar of each session as defined by the symbol (NSE regular session 09:15–15:30 IST). When it fires, the script stores that bar's `bar_index` as `startBarIdx`. Every line for the day starts at this x-position.
 
-`session.isfirstbar` is `true` on the first bar of each trading session as defined by the symbol's session (NSE regular session 09:15–15:30 IST). Everything in the script is keyed off this flag. When it fires, the script records `startBarIdx := bar_index`, which becomes the x-coordinate where all lines for today begin.
+### 4.2 Rolling storage
 
-### 4.2 Rolling storage of sessions
-
-The script keeps nine price arrays and nine volume arrays:
+The script keeps nine price arrays and nine volume arrays, one value per bar:
 
 | Array | Contents |
 |---|---|
 | `day0` / `vol0` | Today's bars so far (still growing) |
 | `day1` / `vol1` | 1 session ago |
-| `day2` / `vol2` | 2 sessions ago |
-| … | … |
+| `day2` / `vol2` … `day7` / `vol7` | 2 … 7 sessions ago |
 | `day8` / `vol8` | 8 sessions ago |
 
-On every bar, the current `Source` value is pushed into `day0` and the bar's `volume` into `vol0`.
+Every bar, the **Source** value is pushed into `day0` and the bar's `volume` into `vol0`. On the first bar of a new session the arrays rotate: `day8 ← day7`, `day7 ← day6` … `day1 ← day0`, then `day0` is cleared. The session that was in `day8` is dropped.
 
-On the first bar of a new session, the arrays are **rotated**: `day8` receives a copy of `day7`, `day7` of `day6`, and so on down to `day1` receiving yesterday's `day0`. Then `day0` is cleared and starts filling with the new session. The same happens for the volume arrays. The oldest session (the previous `day8`) is discarded.
+### 4.3 Stitching the 2-day sequences
 
-Each array holds one value per bar, so its length equals the number of bars in that session (e.g. 75 bars for a full session on a 5-minute chart).
+Each sequence is the older day followed directly by the newer day (`f_concat`):
 
-### 4.3 Building the 2-day sequences
-
-A 2-day sequence is the older day's array followed by the newer day's array, joined by `f_concat`:
-
-| Sequence | Built from | First day (used for matching) | Second day (the "next day" projection) |
+| Sequence | Built from | First day (used for matching) | Second day (projection) |
 |---|---|---|---|
 | Seq 1 | `day2` + `day1` | 2 sessions ago | Yesterday |
 | Seq 2 | `day3` + `day2` | 3 sessions ago | 2 sessions ago |
@@ -107,262 +121,163 @@ A 2-day sequence is the older day's array followed by the newer day's array, joi
 | Seq 6 | `day7` + `day6` | 7 sessions ago | 6 sessions ago |
 | Seq 7 | `day8` + `day7` | 8 sessions ago | 7 sessions ago |
 
-Because the two days are joined bar-for-bar, the **overnight gap** between them (the older day's close to the newer day's open) is preserved inside the line. When the line is projected, that historical gap appears where today's session ends and the next one would begin.
+Because the days are joined bar-for-bar, the historical overnight gap between them stays inside the line.
 
-### 4.4 Projecting a sequence onto today (`f_buildPoly`)
+### 4.4 Projection onto today
 
-For a sequence with `n` values, the helper creates `n` chart points:
+For a sequence with `n` values, `f_buildPoly` creates `n` points:
 
 ```
-x = startBarIdx + i                  (i = 0 … n-1)
+x = startBarIdx + i                     (i = 0 … n−1)
 y = sequence[i] + offset
-```
 
-where
-
-```
 offset = alignOpen ? (todayOpen − sequence[0]) : 0
 ```
 
-- `todayOpen` is the first value in `day0`, i.e. today's first-bar `Source` value (the first bar's close if `Source = close`).
-- `sequence[0]` is the first value of the older day in the pair.
+`todayOpen` is the first value in `day0` (with Source = close, that is the first bar's close). With alignment on, the historical path keeps its shape but is slid vertically to start at today's open. With alignment off, it is drawn at the actual historical prices. The points are joined into a straight-segment `polyline` using `xloc.bar_index`, which lets the line extend past the current bar into the future.
 
-With alignment on, the whole historical path is slid vertically so that it starts at today's opening value; only its **shape** (point moves relative to its own start) is kept. With alignment off, the line is drawn at the actual historical price levels.
+The seven blue lines are built **once per session**, on the first bar, each with a fixed transparency step:
 
-The points are joined into a single straight-segment `polyline` using `xloc.bar_index`, so the line advances one step per bar and extends into the future beyond the current bar.
+| Seq 1 | Seq 2 | Seq 3 | Seq 4 | Seq 5 | Seq 6 | Seq 7 |
+|---|---|---|---|---|---|---|
+| 15 | 26 | 37 | 48 | 59 | 70 | 81 |
 
-### 4.5 When the blue lines are drawn
+### 4.5 Similarity scoring (best match)
 
-The seven blue polylines are built **once per session**, on the first bar. Before building, the previous session's seven lines are deleted, so only today's fan is ever on the chart. Each sequence gets a progressively higher transparency:
-
-| Sequence | Transparency | Visual |
-|---|---|---|
-| Seq 1 | 15 | Most solid |
-| Seq 2 | 26 | |
-| Seq 3 | 37 | |
-| Seq 4 | 48 | |
-| Seq 5 | 59 | |
-| Seq 6 | 70 | |
-| Seq 7 | 81 | Faintest |
-
-A sequence is skipped (no line) if its toggle is off or if it has no data yet (e.g. in the first 8 sessions of chart history).
-
-### 4.6 The best-match algorithm (`f_calcError`)
-
-This runs on **every bar** of the session.
-
-Let today have `N` bars so far. For each sequence the script compares today's first `N` values with the sequence's first `N` values (which, on a normal day, all fall inside the sequence's *first* day).
-
-Both paths are converted to **moves relative to their own start**, so absolute price level and gaps do not matter:
+On every bar, with `N` bars of today recorded, `f_calcError` compares today's first `N` values with each sequence's first `N` values (on a normal day these all fall inside the sequence's first day). Both paths are converted to moves from their own start, so price level and gaps do not matter:
 
 ```
 Δtoday[i] = today[i]    − today[0]
 Δseq[i]   = sequence[i] − sequence[0]
-```
 
-The error score is a weighted mean squared difference:
-
+error = Σ w[i] · (Δtoday[i] − Δseq[i])²  ÷  max( Σ w[i], 1 )        i = 0 … N−1
 ```
-            Σ  w[i] · (Δtoday[i] − Δseq[i])²
-Error  =   ──────────────────────────────────        i = 0 … N-1
-            max( Σ w[i] , 1 )
-```
-
-The weight depends on the **Matching Model** input:
 
 | Matching Model | Weight `w[i]` | Effect |
 |---|---|---|
-| Volume-Weighted Price Match (default) | `max(today's volume at bar i, 1)` | Bars where today traded heavily count more. A mismatch during a high-volume opening drive or breakout matters more than a mismatch during a quiet lunch period. |
-| Pure Price Similarity (MSE) | `1` | Every bar counts equally — a plain mean squared error of the shapes. |
+| **Volume-Weighted Price Match** (default) | `max(today's volume at bar i, 1)` | Mismatches during heavy-volume bars (open, breakouts, close) count more than quiet ones. |
+| **Pure Price Similarity (MSE)** | `1` | Every bar counts equally; a plain mean squared error of the shapes. |
 
-**Disqualification.** If a sequence has fewer total values than today's bar count (`nSeq < N`), or has no data, its error is set to `1e12` so it effectively cannot win.
+A sequence with no data, or with fewer values than today's bar count, gets an error of `1e12` and effectively cannot win. The error is in squared price points, so it is only meaningful for ranking sequences against each other on the same bar.
 
-**Picking the winner.** The script takes the minimum of the seven errors. If several sequences tie, the check order Seq 1 → Seq 7 means the **most recent** tied sequence wins. If every sequence is disqualified (all errors `1e12`), Seq 1 is selected by default; if it is empty, nothing is drawn.
+### 4.6 Choosing and drawing the white line
 
-**Units.** The error is measured in squared price points of the chosen `Source`, so its magnitude is only meaningful for comparing sequences against each other on the same bar, not across symbols.
-
-### 4.7 Drawing the white line
-
-After choosing the winner, the previous white polyline is deleted and a new one is built with `f_buildPoly` — same start bar, same alignment rule, colour white, width from **White Line Width**. Because this happens every bar, the white line can switch between sequences during the day as the evidence changes. Early in the session (few bars) the match is based on very little data and tends to jump around; later it usually stabilises.
-
-The white line is drawn after the blue lines, so it sits on top of the blue line it duplicates.
-
-### 4.8 Full per-bar execution order
-
-1. Detect whether this is the first bar of the session.
-2. If yes: record `startBarIdx`, delete old blue lines, rotate the 9 price + 9 volume arrays.
-3. Push the current `Source` and `volume` into today's arrays.
-4. If first bar: build the 7 blue projections.
-5. Build the 7 stitched price/volume sequences.
-6. Compute 7 error scores against today's path so far.
-7. Pick the lowest error; delete and redraw the white line.
+The lowest of the seven errors wins. Ties go to the **more recent** sequence (checked Seq 1 → Seq 7). If every sequence is disqualified, Seq 1 is used by default, and nothing is drawn if it is empty. The previous white line is deleted and the winner is redrawn with `f_buildPoly`, using the same start bar and alignment rule, in white. Because it is drawn after the blue lines, it sits on top of the blue line it duplicates.
 
 ---
 
-## 5. User Manual — Every Input Explained
+## 5. Parameter reference
 
-### Group: General
+### General
 
-#### Source (price used for the lines)
-- **Type:** Source | **Default:** `close`
-- **What it does:** The price series stored for every bar, used both for drawing all lines and for the similarity match.
-- **Options & when to use them:**
-  - `close` — standard choice; lines represent bar closes.
-  - `hl2` / `hlc3` / `ohlc4` — smoother, less sensitive to where exactly each bar closed; good on noisy lower timeframes.
-  - `open` — makes the very first point of each line the true session open price.
-  - `high` / `low` — rarely useful here; they bias the shape toward one side of each bar.
-  - You can also select another indicator's output as the source if it is on the chart.
-- **Note:** "Today's open" for alignment is the first stored value of today, so with `close` it is the first bar's close, not the exchange opening print.
-
-#### Align each past day to today's open
-- **Type:** Checkbox | **Default:** On
-- **On:** Every historical line is shifted vertically so it starts at today's opening value. You compare **shapes and move sizes** (e.g. "that day rallied 120 points by 11:00"). This is the recommended mode.
-- **Off:** Lines are drawn at their original historical price levels. Useful for seeing where past sessions actually traded relative to today (acts a bit like a support/resistance map), but the fan can be far from current price after trending days.
-- **Also affects:** the white best-match line. The match calculation itself is unaffected, because it always uses relative moves.
-
-#### Line color
-- **Type:** Colour | **Default:** Blue
-- **What it does:** Base colour for the 7 historical sequence lines. The script applies its own transparency ladder (15 → 81) on top of whatever colour you choose, so choose a fully opaque colour here for best results.
-- **Tip:** Pick a colour that contrasts with your candles and with white.
-
-#### Line width
-- **Type:** Integer 1–4 | **Default:** 1
-- **What it does:** Thickness of the 7 blue lines. Keep at 1 when all seven are shown so the chart stays readable; increase if you only display one or two sequences.
-
-### Group: Show / Hide by Sequence
-
-| Input | Default | Controls |
+| Parameter | Default | Description |
 |---|---|---|
-| Seq 1 (Days 2 & 1 ago) | On | Line built from 2 sessions ago → yesterday |
-| Seq 2 (Days 3 & 2 ago) | On | 3 sessions ago → 2 sessions ago |
-| Seq 3 (Days 4 & 3 ago) | On | 4 sessions ago → 3 sessions ago |
-| Seq 4 (Days 5 & 4 ago) | On | 5 sessions ago → 4 sessions ago |
-| Seq 5 (Days 6 & 5 ago) | On | 6 sessions ago → 5 sessions ago |
-| Seq 6 (Days 7 & 6 ago) | On | 7 sessions ago → 6 sessions ago |
-| Seq 7 (Days 8 & 7 ago) | On | 8 sessions ago → 7 sessions ago |
+| Source (price used for the lines) | close | Price stored for every bar and used for both drawing and matching. `hl2` / `hlc3` / `ohlc4` give smoother shapes on noisy timeframes; `open` makes lines start at the true first-bar open. |
+| Align each past day to today's open | ✅ On | Shift every historical line (including the white line) so it starts at today's open. Off = draw at the original historical prices. Matching is unaffected either way. |
+| Line color | Blue | Base colour for the 7 sequence lines. The script applies its own transparency ladder on top, so pick a fully opaque colour. |
+| Line width | 1 | Thickness of the blue lines (1–4). Keep at 1 with all seven shown; raise it if you show only one or two. |
 
-- **What they do:** Show or hide the individual blue lines.
-- **Important:** These toggles affect **display only**. The best-match engine always evaluates all seven sequences, so the white line can land on a sequence whose blue line is hidden. That is by design — you can hide all seven blue lines and keep only the white one for a clean chart.
-- **Typical setups:**
-  - *Clean chart:* all seven off, white line on.
-  - *Recent context only:* Seq 1–3 on, Seq 4–7 off.
-  - *Full range envelope:* all on — the spread of the fan gives a rough idea of how far price has typically travelled in recent sessions.
+### Show / Hide by Sequence
 
-### Group: Best Match Forecast
+| Parameter | Default | Description |
+|---|---|---|
+| Seq 1 (Days 2 & 1 ago) | ✅ On | 2 sessions ago → yesterday. |
+| Seq 2 (Days 3 & 2 ago) | ✅ On | 3 sessions ago → 2 sessions ago. |
+| Seq 3 (Days 4 & 3 ago) | ✅ On | 4 sessions ago → 3 sessions ago. |
+| Seq 4 (Days 5 & 4 ago) | ✅ On | 5 sessions ago → 4 sessions ago. |
+| Seq 5 (Days 6 & 5 ago) | ✅ On | 6 sessions ago → 5 sessions ago. |
+| Seq 6 (Days 7 & 6 ago) | ✅ On | 7 sessions ago → 6 sessions ago. |
+| Seq 7 (Days 8 & 7 ago) | ✅ On | 8 sessions ago → 7 sessions ago. |
 
-#### Show Best-Match Forecast (White Line)
-- **Type:** Checkbox | **Default:** On
-- **What it does:** Shows or hides the white best-match line. When off, the matching still runs internally but nothing is drawn.
+> These toggles are **display only**. The best-match engine always evaluates all seven sequences, so the white line can land on a sequence whose blue line is hidden. Hiding all seven and keeping only the white line is a valid, clean setup.
 
-#### Matching Model
-- **Type:** Dropdown | **Default:** Volume-Weighted Price Match
-- **Volume-Weighted Price Match:** Each bar's squared difference is weighted by **today's** volume on that bar. Prioritises matching the parts of today's session where real participation happened (usually the open, breakouts, and the close). Recommended for liquid stocks and futures.
-- **Pure Price Similarity (MSE):** All bars count equally. Use it on symbols where volume is missing or unreliable — for example **index symbols such as `NSE:NIFTY` or `NSE:BANKNIFTY` typically carry no volume**, in which case every weight falls back to 1 and both models behave the same anyway. Also use it if you want quiet periods to matter as much as active ones.
+### Best Match Forecast
 
-#### White Line Width
-- **Type:** Integer 1–5 | **Default:** 1
-- **What it does:** Thickness of the best-match line. Setting it to 2 or 3 makes the forecast stand out clearly from the blue fan.
+| Parameter | Default | Description |
+|---|---|---|
+| Show Best-Match Forecast (White Line) | ✅ On | Show or hide the white line. Matching still runs when hidden. |
+| Matching Model | Volume-Weighted Price Match | `Volume-Weighted Price Match` or `Pure Price Similarity (MSE)` (see §4.5). |
+| White Line Width | 1 | Thickness of the white line (1–5). 2–3 makes it stand out from the blue fan. |
 
 ---
 
-## 6. Reading the Chart
+## 6. How to use it: practical guide
 
-```
- today's open ──►  ════ today (first half of every line) ════ │ ═══ next session (second half) ═══►
-                                                              │
-                   candles print over this part               │ this part is pure projection
-                                                          session end
-```
+**Getting started**
 
-- **First half of the lines:** overlays today. Compare live candles against the fan. If price is tracking one line closely, the white line will usually lock onto it.
-- **Second half of the lines:** extends past today's close into the next session. For the white line, this is "what happened on the day after the historical day that most resembled today." It includes that historical overnight gap.
-- **Fan width:** how spread out the seven lines are gives a rough, informal sense of recent intraday range. A tight fan means recent days behaved similarly; a wide fan means they diverged.
-- **White line switching:** frequent switching means no historical day fits today well; a white line that stays on one sequence for most of the session indicates a stronger resemblance.
-- **All lines reset** at the next session's first bar: the fan is rebuilt from the new set of eight prior days, and the previous day's projection is removed.
+1. Add 2 Days Seq Projection to a 5-minute NSE chart with default settings.
+2. Let the first 30–60 minutes of the session trade. Early on the white line is based on very few bars and jumps around.
+3. Watch whether today's candles hug the white line. A white line that stays on one sequence for most of the morning indicates a stronger resemblance than one that keeps switching.
+4. Use the white line's second half as one scenario for the next session, alongside the spread of the blue lines.
 
----
+**Recommended timeframes**
 
-## 7. Recommended Timeframes
-
-A full NSE regular session (09:15–15:30) is 375 minutes. Each 2-day line therefore has roughly twice the bars-per-session count:
+A full NSE session is 375 minutes, so each 2-day line has about twice the bars-per-session count:
 
 | Timeframe | Bars per session | Bars per 2-day line | Suitability |
 |---|---|---|---|
-| 1 min | 375 | ~750 | Not recommended (see Section 9 — future-drawing limit) |
-| 2 min | ~188 | ~375 | OK |
-| 3 min | 125 | 250 | Good |
-| 5 min | 75 | 150 | **Recommended** |
-| 10 min | ~38 | ~75 | Good |
-| 15 min | 25 | 50 | Good, coarser matching |
-| 30 min / 1 h | 13 / 7 | 26 / 14 | Works, but matching has very few points |
-| Daily and above | 1 | 2 | Not meaningful — every bar is a "first bar" |
+| 1m | 375 | ~750 | Not recommended (future-drawing limit, see §7) |
+| 2m | ~188 | ~375 | OK |
+| 3m | 125 | 250 | Good |
+| 5m | 75 | 150 | **Recommended** |
+| 10m | ~38 | ~75 | Good |
+| 15m | 25 | 50 | Good, coarser matching |
+| 30m / 1h | 13 / 7 | 26 / 14 | Works, but very few points to match |
+| Daily and above | 1 | 2 | Not meaningful |
 
-The 3-minute to 15-minute range gives the best balance between matching detail and a readable chart.
+**Suggested starting points**
 
----
+| Situation | Try |
+|---|---|
+| Chart looks cluttered | Turn off Seq 4–7 (or all seven) and set **White Line Width** to 2. |
+| Index symbol with no volume (e.g. `NSE:NIFTY`) | Use **Pure Price Similarity (MSE)**. Without volume, both models give the same result anyway. |
+| Liquid stock or futures | Keep **Volume-Weighted Price Match**; compare with MSE and keep whichever tracks better on your symbol. |
+| Noisy, spiky bars | Set **Source** to `hl2` or `hlc3`. |
+| Want to see where recent sessions actually traded | Turn **Align each past day to today's open** off; clusters of lines can act as reference levels. |
+| Error about drawing into the future | Move from 1m to 3m or higher. |
+| White line hard to see | Use a dark chart theme or raise **White Line Width**. |
 
-## 8. Practical Workflows
+**Good practice**
 
-**Morning bias check.** After the first 30–60 minutes, look at which sequence the white line has settled on. If it is stable and today's candles are hugging it, the second half of that line is a plausible template for the rest of the session and the next open.
-
-**Scenario planning.** Rather than trusting one line, look at where the seven blue lines end at today's session close. The highest and lowest end points give an informal best-case/worst-case range based on the last week and a half of behaviour.
-
-**Clean forecast view.** Turn off all seven blue lines, set **White Line Width** to 2, and use the chart purely with the best-match line.
-
-**Level study.** Turn **Align each past day to today's open** off to see where recent sessions actually traded. Areas where several historical lines cluster can act as reference levels.
-
-**Index vs. stock.** On indices without volume use **Pure Price Similarity (MSE)**. On stocks and futures try both models and see which one's white line tracks better on your symbol.
-
----
-
-## 9. Limitations and Known Behaviours
-
-- **Future-drawing limit on low timeframes.** TradingView restricts how far into the future drawings positioned by `bar_index` may be placed (around 500 bars). On a 1-minute chart a 2-day line reaches about 750 bars ahead of the session's first bar, which can cause a runtime error or missing lines. Use 2-minute or higher.
-- **Sequence volume is not used.** `f_calcError` receives the historical sequence's volume (`seqVol`) but does not use it; weighting is based only on **today's** volume. The volume-weighted model therefore changes *which bars matter*, not whether volume profiles resemble each other.
-- **Absolute-point error.** Matching is in raw price points, not percentages. This is fine within one symbol, but after a large price-level change inside the 8-day window, older days' move sizes are compared directly with today's.
-- **Unequal session lengths.** Half-days, Muhurat trading sessions, special sessions, or missing bars make sessions different lengths. Because lines are laid out bar-by-bar, the session boundary inside a 2-day line will not line up with today's actual close on those days.
-- **Short history on first days.** The first 8 sessions on the chart cannot produce all seven sequences; lines appear as history accumulates.
-- **Only the last 8 sessions are considered.** The "memory" is deliberately short. It reflects recent behaviour, not long-term statistics.
-- **Early-session instability.** With only a few bars, the best match is based on little evidence and can switch frequently.
-- **White colour is fixed.** The best-match line is always white; there is no colour input. On a light chart theme it may be hard to see — use a dark theme or raise its width.
-- **Repainting by design.** The white line is recalculated every bar and its chosen sequence can change. On historical bars you only see the final state for each session's last bar. Do not backtest from what the line looked like after the fact.
-- **Processing load.** Seven 2-day arrays are copied and compared on every bar. On long histories at low timeframes this may be slow; reduce loaded history or use a higher timeframe if TradingView reports a calculation timeout.
+- Use the lines as **context**, not as entries. Combine them with support/resistance, volume and your own risk rules.
+- Read the **whole fan**, not just the white line. Where the seven lines end at today's close gives an informal best-case / worst-case range from the last week and a half.
+- Remember the memory is only 8 sessions. After an event day (results, budget, policy announcements), recent sequences may not represent normal behaviour.
+- For **options**, remember time decay: a projected move that takes a full day may not pay off even if direction is right.
 
 ---
 
-## 10. Troubleshooting / FAQ
+## 7. Limitations and honest notes
 
-**No lines appear.**
-Make sure you are on an intraday timeframe and that at least 2–3 sessions of history are loaded. On a daily chart the script does not produce meaningful output.
-
-**Only some blue lines appear.**
-Check the Show / Hide toggles. If all are on, the chart may not yet have 8 completed sessions of history.
-
-**I get an error about drawing too far into the future.**
-You are likely on a 1-minute chart. Switch to 2 minutes or higher.
-
-**The white line covers one of the blue lines exactly.**
-Expected — it is a copy of the winning sequence drawn on top.
-
-**The white line points to a sequence I have hidden.**
-Expected — matching always considers all seven sequences regardless of display toggles.
-
-**Both matching models give identical results.**
-The symbol probably has no volume data (common on indices), so every weight becomes 1.
-
-**The lines start slightly away from the actual 09:15 open.**
-With `Source = close`, "today's open" is the close of the first bar. Set **Source** to `open` if you want lines to start at the first bar's opening price.
+- **Future-drawing limit on low timeframes.** TradingView limits how far into the future `bar_index`-based drawings can go (around 500 bars). On a 1-minute chart a 2-day line reaches about 750 bars ahead of the session's first bar, which can cause a runtime error or missing lines. Use 2m or higher.
+- **Historical volume is not used.** `f_calcError` receives each sequence's volume (`seqVol`) but ignores it. The volume-weighted model decides *which of today's bars matter more*; it does not check whether volume profiles resemble each other.
+- **Error is in absolute points.** Matching uses raw price points, not percentages. After a large change in price level within the 8-day window, older days' move sizes are compared directly with today's.
+- **Unequal session lengths.** Half-days, Muhurat trading, special sessions or missing bars change a day's bar count. Because lines are laid out bar-by-bar, the session boundary inside a line will not line up with today's close on those days.
+- **Short memory.** Only the last 8 sessions are considered. This reflects recent behaviour, not long-term statistics.
+- **Early-session instability.** With few bars, the best match rests on little evidence and switches often.
+- **The white line repaints by design.** It is recalculated every bar. On historical sessions you only see its final state for the day's last bar, so do not judge or backtest it from how it looks afterwards.
+- **White colour is fixed.** There is no colour input for the best-match line; it can be hard to see on a light theme.
+- **Performance.** Seven 2-day sequences are copied and scored on every bar. On long histories at low timeframes this may be slow; use a higher timeframe if TradingView reports a calculation timeout.
 
 ---
 
-## 11. Changelog
+## 8. Release versioning
 
-| Release | Date | Notes |
+Releases follow the format:
+
+```
+<incremental number>.<DDMMYYYY>.<HHMM>
+```
+
+- The number increases by 1 with every code change.
+- Date and time are in IST (UTC+5:30).
+- The script file is named `2dsp.<release>.pine`.
+
+| Release | Date | Summary |
 |---|---|---|
-| 12.12092026.0014 | Sat 12 Sep 2026 | Added standard author/release header with updated description. Renamed indicator to "2-Days Sequences (Projected) with Best Match" (short name "2 Days Seq Projection"); file renamed to `2dsp.12.12092026.0014.pine`. No logic changes. |
+| 12.12092026.0014 | 12 Sep 2026 | Header description, GitHub link. Renamed to "2-Days Sequences (Projected) with Best Match", short name "2 Days Seq Projection". No logic changes. |
 
 ---
 
-## 12. Disclaimer
+## 9. Credits
 
-This indicator is a visual research tool that replays recent price behaviour. It does not predict the future, and the similarity of today to a past day does not imply the next day will repeat. Nothing produced by this script is financial advice. Always use proper risk management and your own judgement before trading.
+Concept, 2-day sequence projection, best-match scoring and Pine Script v6 implementation: **Subhasom Mandal** ([github.com/Subhasom](https://github.com/Subhasom)).
