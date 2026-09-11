@@ -1,0 +1,238 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Author Name : Subhasom Mandal
+// GitHub      : https://github.com/Subhasom
+// Date        : Saturday 12th Sep 2026
+// Release     : 12.12092026.0014
+// Description : 2-Days Sequences (Projected) with Best Match — an intraday
+//               analog-forecasting overlay for NSE charts. At the open of
+//               every session it takes the last 8 completed sessions and
+//               stitches them into 7 rolling 2-day sequences (Days 2&1 ago
+//               ... Days 8&7 ago). Each sequence is drawn as a blue polyline
+//               starting at today's first bar and running through today and
+//               into the next session, optionally shifted so it starts at
+//               today's open (older sequences fade out). On every bar it
+//               compares today's open-relative price path with the first day
+//               of each sequence using a volume-weighted (or plain) mean-
+//               squared error and redraws the closest 2-day path as a white
+//               "best-match" forecast line. Per-sequence show/hide toggles,
+//               source, colour, width and matching model are configurable.
+// ═════════════════════════════════════════════════════════════════════════════
+
+//@version=6
+indicator("2-Days Sequences (Projected) with Best Match", shorttitle = "2 Days Seq Projection", overlay = true, max_bars_back = 5000)
+
+// =================================================================
+// 2-Days Sequences (Projected) with Best Match
+// ---------------------------------------------------------------
+// Draws 7 historical 2-day sequences (e.g., Days 2 & 1 ago) as FULL lines.
+//
+// + Best Match: Evaluates current intraday price & volume against 
+// the first day of those historical sequences. Highlights the 
+// closest 2-day path as a prominent WHITE LINE.
+// =================================================================
+
+// ---------------- Inputs ----------------
+srcInput = input.source(close, "Source (price used for the lines)", group = "General")
+alignOpen = input.bool(true, "Align each past day to today's open",
+     tooltip = "Shifts each past day's line up/down so it starts at today's open.", group = "General")
+baseColor = input.color(color.blue, "Line color", group = "General")
+lineWidth = input.int(1, "Line width", minval = 1, maxval = 4, group = "General")
+
+// per-day show/hide toggles
+show1 = input.bool(true, "Seq 1 (Days 2 & 1 ago)", group = "Show / Hide by Sequence")
+show2 = input.bool(true, "Seq 2 (Days 3 & 2 ago)", group = "Show / Hide by Sequence")
+show3 = input.bool(true, "Seq 3 (Days 4 & 3 ago)", group = "Show / Hide by Sequence")
+show4 = input.bool(true, "Seq 4 (Days 5 & 4 ago)", group = "Show / Hide by Sequence")
+show5 = input.bool(true, "Seq 5 (Days 6 & 5 ago)", group = "Show / Hide by Sequence")
+show6 = input.bool(true, "Seq 6 (Days 7 & 6 ago)", group = "Show / Hide by Sequence")
+show7 = input.bool(true, "Seq 7 (Days 8 & 7 ago)", group = "Show / Hide by Sequence")
+
+// Best Match Inputs
+showBestMatch = input.bool(true, "Show Best-Match Forecast (White Line)", group = "Best Match Forecast")
+matchMode     = input.string("Volume-Weighted Price Match", "Matching Model", options = ["Volume-Weighted Price Match", "Pure Price Similarity (MSE)"], group = "Best Match Forecast")
+whiteWidth    = input.int(1, "White Line Width", minval = 1, maxval = 5, group = "Best Match Forecast")
+
+// ---------------- Session tracking ----------------
+newDay = session.isfirstbar // true on the first bar of every NSE session
+var int startBarIdx = na    // tracks the bar_index of today's open
+
+// ---------------- Rolling storage: today + last 8 completed days ----------------
+var array<float> day0 = array.new<float>(0) // today (still building)
+var array<float> day1 = array.new<float>(0) // 1 session ago
+var array<float> day2 = array.new<float>(0)
+var array<float> day3 = array.new<float>(0)
+var array<float> day4 = array.new<float>(0)
+var array<float> day5 = array.new<float>(0)
+var array<float> day6 = array.new<float>(0)
+var array<float> day7 = array.new<float>(0)
+var array<float> day8 = array.new<float>(0) // 8 sessions ago (needed for 7th 2-day seq)
+
+var array<float> vol0 = array.new<float>(0) // Volume tracking for accurate matching
+var array<float> vol1 = array.new<float>(0)
+var array<float> vol2 = array.new<float>(0)
+var array<float> vol3 = array.new<float>(0)
+var array<float> vol4 = array.new<float>(0)
+var array<float> vol5 = array.new<float>(0)
+var array<float> vol6 = array.new<float>(0)
+var array<float> vol7 = array.new<float>(0)
+var array<float> vol8 = array.new<float>(0)
+
+// ---------------- Polyline handles ----------------
+var polyline poly1 = na
+var polyline poly2 = na
+var polyline poly3 = na
+var polyline poly4 = na
+var polyline poly5 = na
+var polyline poly6 = na
+var polyline poly7 = na
+var polyline polyBest = na // Handle for the white line
+
+if newDay
+    startBarIdx := bar_index
+    
+    // wipe last session's projected lines before drawing new ones
+    if not na(poly1)
+        polyline.delete(poly1)
+    if not na(poly2)
+        polyline.delete(poly2)
+    if not na(poly3)
+        polyline.delete(poly3)
+    if not na(poly4)
+        polyline.delete(poly4)
+    if not na(poly5)
+        polyline.delete(poly5)
+    if not na(poly6)
+        polyline.delete(poly6)
+    if not na(poly7)
+        polyline.delete(poly7)
+
+    // shift everything back by one session
+    day8 := day7.copy()
+    day7 := day6.copy()
+    day6 := day5.copy()
+    day5 := day4.copy()
+    day4 := day3.copy()
+    day3 := day2.copy()
+    day2 := day1.copy()
+    day1 := day0.copy()
+    day0.clear()
+    
+    vol8 := vol7.copy()
+    vol7 := vol6.copy()
+    vol6 := vol5.copy()
+    vol5 := vol4.copy()
+    vol4 := vol3.copy()
+    vol3 := vol2.copy()
+    vol2 := vol1.copy()
+    vol1 := vol0.copy()
+    vol0.clear()
+
+day0.push(srcInput)
+vol0.push(volume)
+
+// ---------------- Helper: Stitch Arrays for 2-Day Sequence ----------------
+f_concat(arrA, arrB) =>
+    res = arrA.copy()
+    if array.size(arrB) > 0
+        array.concat(res, arrB)
+    res
+
+// ---------------- Helper: compute similarity error ----------------
+f_calcError(seqPrice, seqVol, curPrice, curVol, mode) =>
+    float score = 1e12
+    nCur = array.size(curPrice)
+    nSeq = array.size(seqPrice)
+    
+    if nSeq >= nCur and nCur > 0
+        float totalDist = 0.0
+        float totalWeight = 0.0
+        curStart = array.get(curPrice, 0)
+        seqStart = array.get(seqPrice, 0)
+        
+        for i = 0 to nCur - 1
+            curDelta = array.get(curPrice, i) - curStart
+            seqDelta = array.get(seqPrice, i) - seqStart
+            diff = math.abs(curDelta - seqDelta)
+            
+            w = 1.0
+            if mode == "Volume-Weighted Price Match"
+                w := math.max(array.get(curVol, i), 1.0)
+            
+            totalDist += math.pow(diff, 2) * w
+            totalWeight += w
+            
+        score := totalDist / math.max(totalWeight, 1.0)
+    score
+
+// ---------------- Helper: build one full-session projected polyline ----------------
+f_buildPoly(dayArr, showFlag, todayOpen, lineColor, lWidth, startIdx) =>
+    polyline poly = na
+    n = array.size(dayArr)
+    if showFlag and n > 0 and not na(startIdx)
+        pts = array.new<chart.point>(0)
+        dayOpen = array.get(dayArr, 0)
+        offset = alignOpen ? todayOpen - dayOpen : 0.0
+        for i = 0 to n - 1
+            val = array.get(dayArr, i) + offset
+            array.push(pts, chart.point.from_index(startIdx + i, val))
+        poly := polyline.new(pts, curved = false, closed = false, xloc = xloc.bar_index,
+             line_color = lineColor, line_width = lWidth)
+    poly
+
+// ---------------- Build base 7 projections (2 Days Each) at the start of today's session ----------------
+if newDay
+    todayOpen = array.get(day0, 0)
+    poly1 := f_buildPoly(f_concat(day2, day1), show1, todayOpen, color.new(baseColor, 15), lineWidth, startBarIdx)
+    poly2 := f_buildPoly(f_concat(day3, day2), show2, todayOpen, color.new(baseColor, 26), lineWidth, startBarIdx)
+    poly3 := f_buildPoly(f_concat(day4, day3), show3, todayOpen, color.new(baseColor, 37), lineWidth, startBarIdx)
+    poly4 := f_buildPoly(f_concat(day5, day4), show4, todayOpen, color.new(baseColor, 48), lineWidth, startBarIdx)
+    poly5 := f_buildPoly(f_concat(day6, day5), show5, todayOpen, color.new(baseColor, 59), lineWidth, startBarIdx)
+    poly6 := f_buildPoly(f_concat(day7, day6), show6, todayOpen, color.new(baseColor, 70), lineWidth, startBarIdx)
+    poly7 := f_buildPoly(f_concat(day8, day7), show7, todayOpen, color.new(baseColor, 81), lineWidth, startBarIdx)
+
+// ---------------- Dynamic Best-Match Evaluator (Updates Every Bar) ----------------
+if array.size(day0) > 0
+    todayOpenDyn = array.get(day0, 0)
+    
+    // Stitch sequences for matching & drawing
+    s1_p = f_concat(day2, day1), s1_v = f_concat(vol2, vol1)
+    s2_p = f_concat(day3, day2), s2_v = f_concat(vol3, vol2)
+    s3_p = f_concat(day4, day3), s3_v = f_concat(vol4, vol3)
+    s4_p = f_concat(day5, day4), s4_v = f_concat(vol5, vol4)
+    s5_p = f_concat(day6, day5), s5_v = f_concat(vol6, vol5)
+    s6_p = f_concat(day7, day6), s6_v = f_concat(vol7, vol6)
+    s7_p = f_concat(day8, day7), s7_v = f_concat(vol8, vol7)
+    
+    // Calculate errors based on the portion of the day that has occurred so far
+    e1 = f_calcError(s1_p, s1_v, day0, vol0, matchMode)
+    e2 = f_calcError(s2_p, s2_v, day0, vol0, matchMode)
+    e3 = f_calcError(s3_p, s3_v, day0, vol0, matchMode)
+    e4 = f_calcError(s4_p, s4_v, day0, vol0, matchMode)
+    e5 = f_calcError(s5_p, s5_v, day0, vol0, matchMode)
+    e6 = f_calcError(s6_p, s6_v, day0, vol0, matchMode)
+    e7 = f_calcError(s7_p, s7_v, day0, vol0, matchMode)
+
+    minErr = math.min(e1, math.min(e2, math.min(e3, math.min(e4, math.min(e5, math.min(e6, e7))))))
+    array<float> bestDayArr = s1_p
+
+    if minErr == e1
+        bestDayArr := s1_p
+    else if minErr == e2
+        bestDayArr := s2_p
+    else if minErr == e3
+        bestDayArr := s3_p
+    else if minErr == e4
+        bestDayArr := s4_p
+    else if minErr == e5
+        bestDayArr := s5_p
+    else if minErr == e6
+        bestDayArr := s6_p
+    else if minErr == e7
+        bestDayArr := s7_p
+
+    // Continuously redraw the 2-day white forecast line to match the best fitting pattern
+    if not na(polyBest)
+        polyline.delete(polyBest)
+
+    if showBestMatch
+        polyBest := f_buildPoly(bestDayArr, true, todayOpenDyn, color.white, whiteWidth, startBarIdx)
